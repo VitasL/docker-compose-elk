@@ -1,0 +1,66 @@
+version: '2'
+services:
+  elasticsearch:
+    restart: always
+    image: bingozb/elasticsearch
+    container_name: elasticsearch
+    environment: 
+      LOGSPOUT: ignore
+    volumes:
+      - ./elasticsearch/config/elasticsearch.yml:/usr/share/elasticsearch/config/elasticsearch.yml:ro
+      - ${ES_DATA_PATH}:/usr/share/elasticsearch/data
+    ports:
+      - "9200:9200"
+      - "9300:9300"
+    networks:
+      - elk
+
+  logstash:
+    restart: always
+    image: bingozb/logstash
+    container_name: logstash
+    environment: 
+      LOGSPOUT: ignore
+    volumes:
+      - ./logstash/config/logstash.yml:/usr/share/logstash/config/logstash.yml:ro
+      - ./logstash/pipeline:/usr/share/logstash/pipeline:ro
+    ports:
+      - "5000:5000/udp"
+      - "5000:5000/tcp"
+    networks:
+      - elk
+    depends_on:
+      - elasticsearch
+
+  kibana:
+    restart: always
+    image: bingozb/kibana
+    container_name: kibana
+    environment: 
+      LOGSPOUT: ignore
+    volumes:
+      - ./kibana/config/:/usr/share/kibana/config:ro
+    ports:
+      - "5601:5601"
+    networks:
+      - elk
+    depends_on:
+      - elasticsearch
+
+  logspout:
+    restart: always
+    image: bingozb/logspout
+    container_name: logspout
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    environment:
+      ROUTE_URIS: logstash://logstash:5000
+      LOGSTASH_TAGS: docker-elk
+    networks:
+      - elk
+    depends_on:
+      - logstash
+
+networks:
+  elk:
+    driver: bridge
